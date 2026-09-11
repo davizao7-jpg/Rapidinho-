@@ -9,6 +9,7 @@ Rede social de vídeos curtos (feed estilo TikTok agregando links de fora), com 
 - Sistema de XP, nível e ranking dos 100 melhores.
 - Tela de conta com seguidores, curtidas, vídeos postados e posição no ranking.
 - Tema escuro/claro.
+- Foto de perfil (upload na tela Conta, aparece no feed, comentários e ranking).
 - Termos de uso e política de privacidade (rascunho — revisar antes de valer pra usuário real).
 
 ## Passo a passo pra colocar no ar
@@ -18,6 +19,7 @@ Rede social de vídeos curtos (feed estilo TikTok agregando links de fora), com 
 2. Crie um novo projeto (escolha uma senha de banco, guarde ela).
 3. Vá em **SQL Editor** → cole o conteúdo de `supabase/schema.sql` → clique **Run**.
 4. Ainda no SQL Editor, cole o conteúdo de `supabase/quizzes-exemplo.sql` → **Run** (isso já cadastra os 5 quizzes prontos).
+4.1. Ainda no SQL Editor, cole o conteúdo de `supabase/adicionar-foto-perfil.sql` → **Run** (isso cria a coluna da foto de perfil e o espaço de armazenamento das imagens).
 5. Vá em **Project Settings → API**. Copie a **Project URL** e a **anon public key**.
 6. Abra `js/supabase-config.js` neste projeto e cole essas duas informações nos lugares indicados.
 
@@ -56,4 +58,5 @@ deixo isso configurável direto no painel, sem precisar mexer no código toda ve
 - `js/supabase-config.js` — suas chaves do banco.
 - `supabase/schema.sql` — estrutura do banco (rodar 1 vez só).
 - `supabase/quizzes-exemplo.sql` — perguntas prontas (rodar 1 vez só).
+- `supabase/adicionar-foto-perfil.sql` — habilita foto de perfil (rodar 1 vez só).
 - `termos.html` / `privacidade.html` — páginas legais (revisar antes de valer pra usuário real).
