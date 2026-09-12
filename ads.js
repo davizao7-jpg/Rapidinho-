@@ -85,6 +85,29 @@ function criarSlotAnuncioQuiz() {
   return wrapper;
 }
 
+// ---- helper compartilhado: injeta o anúncio dentro de "el" e, se a
+// rede não preencher a tempo, TENTA MAIS 1 VEZ antes de desistir —
+// cobre o caso de ter sido só uma resposta lenta/falha pontual, não
+// necessariamente falta real de anúncio pra mostrar
+function preencherAnuncio(el, aoFalharDefinitivo, tentativasRestantes = 1) {
+  removerInstanciaAnterior();
+  el.innerHTML = "";
+  el.appendChild(criarConteudoNativeBanner());
+
+  const containerIdAlvo = NATIVE_BANNER.containerId;
+  setTimeout(() => {
+    if (!el.isConnected) return; // slot saiu da tela nesse meio tempo, não faz nada
+    const container = document.getElementById(containerIdAlvo);
+    const preencheu = container && container.childElementCount > 0;
+    if (preencheu) return;
+    if (tentativasRestantes > 0) {
+      preencherAnuncio(el, aoFalharDefinitivo, tentativasRestantes - 1);
+    } else {
+      aoFalharDefinitivo();
+    }
+  }, 6000); // 6s dá mais margem pro script carregar antes de considerar "sem anúncio"
+}
+
 // ---- versão barrinha fixa (usada no Feed) ----
 // fica embaixo da tela enquanto a pessoa rola os vídeos, e agora se
 // RENOVA sozinha de tempos em tempos (AD_CONFIG.intervaloRefreshBannerMs),
@@ -102,21 +125,7 @@ let bannerFeedPausadoPorFullscreen = false;
 function montarBannerFeedAgora() {
   if (!bannerFeedEl || bannerFeedPausadoPorFullscreen || document.hidden) return;
   bannerFeedEl.classList.remove("sem-fill");
-  removerInstanciaAnterior();
-  bannerFeedEl.innerHTML = "";
-  bannerFeedEl.appendChild(criarConteudoNativeBanner());
-
-  // se depois de um tempo a rede não preencheu o slot (sem anúncio
-  // disponível agora, cap diário batido, etc.), esconde a faixa até a
-  // próxima renovação em vez de deixar um retângulo preto/vazio parado
-  // na tela — é isso que provavelmente tava causando o "tudo preto"
-  const containerIdAlvo = NATIVE_BANNER.containerId;
-  setTimeout(() => {
-    const container = document.getElementById(containerIdAlvo);
-    if (container && container.childElementCount === 0) {
-      bannerFeedEl.classList.add("sem-fill");
-    }
-  }, 4000);
+  preencherAnuncio(bannerFeedEl, () => bannerFeedEl.classList.add("sem-fill"));
 }
 
 function mostrarBannerFeed() {
@@ -156,43 +165,32 @@ document.addEventListener("visibilitychange", () => {
 
 // ---- versão tela cheia usada dentro do Feed (a cada N vídeos) ----
 // igual à do quiz, mas também avisa a barrinha fixa pra soltar o
-// containerId enquanto esse anúncio tá visível, e devolver depois
+// containerId enquanto esse anúncio tá visível, e devolver depois.
+// a tag "Anúncio" e o conteúdo ficam em elementos separados pra não
+// duplicar a tag quando o conteúdo real é injetado por cima do placeholder.
 function criarSlotAnuncioFeed() {
   const wrapper = document.createElement("div");
   wrapper.className = "ad-slot-fullscreen ad-slot-feed";
   wrapper.dataset.carregado = "false";
 
-  const tag = document.createElement("div");
-  tag.className = "ad-tag";
-  tag.textContent = "Anúncio";
-  wrapper.appendChild(tag);
-
+  const conteudo = document.createElement("div");
+  conteudo.className = "ad-conteudo-feed";
   const placeholder = document.createElement("div");
   placeholder.className = "ad-placeholder";
   placeholder.textContent = "Carregando anúncio...";
-  wrapper.appendChild(placeholder);
+  conteudo.appendChild(placeholder);
+  wrapper.appendChild(conteudo);
 
   return wrapper;
 }
 
 // carrega o conteúdo de verdade só quando o slide fica visível (mesmo
-// padrão de "lazy load" que os vídeos já usam) e cuida da disputa de
-// containerId com a barrinha fixa
+// padrão de "lazy load" que os vídeos já usam)
 function carregarAnuncioFeedSeVisivel(slot) {
   if (slot.dataset.carregado === "true") return;
   slot.dataset.carregado = "true";
-  slot.querySelector(".ad-placeholder")?.remove();
-  removerInstanciaAnterior();
-  slot.appendChild(criarConteudoNativeBanner());
-
-  const containerIdAlvo = NATIVE_BANNER.containerId;
-  setTimeout(() => {
-    const container = document.getElementById(containerIdAlvo);
-    if (container && container.childElementCount === 0 && slot.isConnected) {
-      const ph = document.createElement("div");
-      ph.className = "ad-placeholder";
-      ph.textContent = "Sem anúncio disponível agora — continue rolando.";
-      slot.appendChild(ph);
-    }
-  }, 4000);
+  const conteudo = slot.querySelector(".ad-conteudo-feed");
+  preencherAnuncio(conteudo, () => {
+    conteudo.innerHTML = `<div class="ad-placeholder">Sem anúncio disponível agora — continue rolando.</div>`;
+  });
 }
