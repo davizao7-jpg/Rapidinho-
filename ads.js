@@ -85,24 +85,57 @@ function criarSlotAnuncioQuiz() {
   return wrapper;
 }
 
+// ---- painel de debug visível na tela (pra quem só tem celular, sem
+// DevTools). Mostra em tempo real cada pedido de anúncio e se encheu.
+// Deixa DEBUG_ADS = true por enquanto pra a gente enxergar os fatos;
+// depois de resolver o problema é só voltar pra false e ele some.
+const DEBUG_ADS = true;
+let debugPanelEl = null;
+function logDebugAnuncio(msg) {
+  if (!DEBUG_ADS) return;
+  if (!debugPanelEl) {
+    debugPanelEl = document.createElement("div");
+    debugPanelEl.style.cssText =
+      "position:fixed;left:0;right:0;bottom:64px;max-height:130px;overflow-y:auto;" +
+      "background:rgba(0,0,0,0.88);color:#4f4;font-size:10px;line-height:1.4;" +
+      "padding:4px 6px;z-index:999999;font-family:monospace;pointer-events:none;";
+    document.body.appendChild(debugPanelEl);
+  }
+  const hora = new Date().toLocaleTimeString("pt-BR");
+  const linha = document.createElement("div");
+  linha.textContent = `[${hora}] ${msg}`;
+  debugPanelEl.appendChild(linha);
+  while (debugPanelEl.childElementCount > 14) debugPanelEl.removeChild(debugPanelEl.firstChild);
+  debugPanelEl.scrollTop = debugPanelEl.scrollHeight;
+}
+
 // ---- helper compartilhado: injeta o anúncio dentro de "el" e, se a
 // rede não preencher a tempo, TENTA MAIS 1 VEZ antes de desistir —
 // cobre o caso de ter sido só uma resposta lenta/falha pontual, não
 // necessariamente falta real de anúncio pra mostrar
-function preencherAnuncio(el, aoFalharDefinitivo, tentativasRestantes = 1) {
+function preencherAnuncio(el, aoFalharDefinitivo, rotulo = "anúncio", tentativasRestantes = 1) {
   removerInstanciaAnterior();
   el.innerHTML = "";
   el.appendChild(criarConteudoNativeBanner());
+  logDebugAnuncio(`${rotulo}: pedindo invoke novo (tentativas restantes: ${tentativasRestantes})`);
 
   const containerIdAlvo = NATIVE_BANNER.containerId;
   setTimeout(() => {
-    if (!el.isConnected) return; // slot saiu da tela nesse meio tempo, não faz nada
+    if (!el.isConnected) {
+      logDebugAnuncio(`${rotulo}: slot saiu da tela, ignorando resultado`);
+      return;
+    }
     const container = document.getElementById(containerIdAlvo);
     const preencheu = container && container.childElementCount > 0;
-    if (preencheu) return;
+    if (preencheu) {
+      logDebugAnuncio(`${rotulo}: preencheu OK (${container.childElementCount} elemento(s) dentro)`);
+      return;
+    }
     if (tentativasRestantes > 0) {
-      preencherAnuncio(el, aoFalharDefinitivo, tentativasRestantes - 1);
+      logDebugAnuncio(`${rotulo}: NÃO preencheu, tentando de novo...`);
+      preencherAnuncio(el, aoFalharDefinitivo, rotulo, tentativasRestantes - 1);
     } else {
+      logDebugAnuncio(`${rotulo}: NÃO preencheu depois de todas as tentativas — desistindo`);
       aoFalharDefinitivo();
     }
   }, 6000); // 6s dá mais margem pro script carregar antes de considerar "sem anúncio"
@@ -125,7 +158,7 @@ let bannerFeedPausadoPorFullscreen = false;
 function montarBannerFeedAgora() {
   if (!bannerFeedEl || bannerFeedPausadoPorFullscreen || document.hidden) return;
   bannerFeedEl.classList.remove("sem-fill");
-  preencherAnuncio(bannerFeedEl, () => bannerFeedEl.classList.add("sem-fill"));
+  preencherAnuncio(bannerFeedEl, () => bannerFeedEl.classList.add("sem-fill"), "barrinha fixa");
 }
 
 function mostrarBannerFeed() {
@@ -192,5 +225,5 @@ function carregarAnuncioFeedSeVisivel(slot) {
   const conteudo = slot.querySelector(".ad-conteudo-feed");
   preencherAnuncio(conteudo, () => {
     conteudo.innerHTML = `<div class="ad-placeholder">Sem anúncio disponível agora — continue rolando.</div>`;
-  });
+  }, "tela cheia (feed)");
 }
