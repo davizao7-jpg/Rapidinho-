@@ -89,7 +89,7 @@ function criarSlotAnuncioQuiz() {
 // DevTools). Mostra em tempo real cada pedido de anúncio e se encheu.
 // Deixa DEBUG_ADS = true por enquanto pra a gente enxergar os fatos;
 // depois de resolver o problema é só voltar pra false e ele some.
-const DEBUG_ADS = true;
+const DEBUG_ADS = false;
 let debugPanelEl = null;
 function logDebugAnuncio(msg) {
   if (!DEBUG_ADS) return;

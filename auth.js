@@ -6,6 +6,10 @@ let modoCadastro = false; // alterna entre "Entrar" e "Criar conta" no mesmo for
 let usuarioAtual = null;  // objeto de sessão do supabase
 let perfilAtual = null;   // linha da tabela profiles do usuário logado
 
+// pra qual aba voltar assim que o login/cadastro confirmar — usada
+// quando a pessoa clica em Conta/Quiz/Postar sem estar logada
+let viewPendenteAposLogin = null;
+
 const telaLogin = document.getElementById("tela-login");
 const formLogin = document.getElementById("form-login");
 const loginErro = document.getElementById("login-erro");
@@ -104,7 +108,13 @@ function traduzErroAuth(msg) {
 async function carregarSessao() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
-    telaLogin.style.display = "flex";
+    // sem sessão não bloqueia mais nada — deixa a pessoa rolar o Feed
+    // à vontade. Login só é pedido quando ela tenta abrir uma aba que
+    // precisa de conta (ver pedirLogin, chamada pelo app.js)
+    usuarioAtual = null;
+    perfilAtual = null;
+    telaLogin.style.display = "none";
+    iniciarApp();
     return;
   }
   usuarioAtual = session.user;
@@ -115,5 +125,20 @@ async function carregarSessao() {
     .single();
   perfilAtual = perfil;
   telaLogin.style.display = "none";
-  iniciarApp(); // definida em app.js
+  iniciarApp();
+
+  // se a pessoa tinha clicado em Conta/Quiz/Postar sem estar logada,
+  // volta pra aba que ela queria assim que o login é confirmado
+  if (viewPendenteAposLogin) {
+    const alvo = viewPendenteAposLogin;
+    viewPendenteAposLogin = null;
+    trocarView(alvo); // definida em app.js
+  }
+}
+
+// mostra a tela de login sob demanda — chamada pelo app.js quando a
+// pessoa tenta abrir uma aba que exige estar logada
+function pedirLogin(viewAlvo) {
+  viewPendenteAposLogin = viewAlvo;
+  telaLogin.style.display = "flex";
 }

@@ -788,7 +788,10 @@ a { color: inherit; text-decoration: none; }
   padding: 32px;
   gap: 18px;
   text-align: center;
-  z-index: 100;
+  z-index: 40; /* fica ABAIXO da barra de abas (z-index 50) de propósito:
+    agora o login só aparece quando a pessoa tenta abrir uma aba que
+    exige conta, e precisa continuar dando pra tocar em "Feed" por
+    cima dela pra voltar a rolar livre sem logar */
   background: var(--bg-0);
 }
 .login-wrap .wordmark { font-size: 32px; }
