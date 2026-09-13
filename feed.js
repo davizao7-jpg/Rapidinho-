@@ -173,12 +173,17 @@ function embaralhar(array) {
 
 // -------- buscar próximo lote de posts, sem repetir vistos --------
 async function buscarProximosPosts(limite = 6) {
-  // ids que esse usuário já viu
-  const { data: vistos } = await supabaseClient
-    .from("post_views")
-    .select("post_id")
-    .eq("usuario_id", usuarioAtual.id);
-  const idsVistos = (vistos || []).map(v => v.post_id);
+  // ids que esse usuário já viu — só faz sentido pra quem tá logado;
+  // visitante anônimo não tem histórico, então a lista fica vazia e
+  // ele simplesmente vê o feed geral, sem filtrar nada
+  let idsVistos = [];
+  if (usuarioAtual) {
+    const { data: vistos } = await supabaseClient
+      .from("post_views")
+      .select("post_id")
+      .eq("usuario_id", usuarioAtual.id);
+    idsVistos = (vistos || []).map(v => v.post_id);
+  }
 
   // busca um "pool" bem maior que o pedido pra ter o que embaralhar de
   // verdade (embaralhar só 6 itens já ordenados dá pouca variedade —
@@ -387,7 +392,7 @@ const observerFeed = new IntersectionObserver((entries) => {
       agendarAvancoAutomatico(item);
 
       const postId = item.dataset.postId;
-      if (postId) {
+      if (postId && usuarioAtual) {
         await supabaseClient
           .from("post_views")
           .insert({ post_id: postId, usuario_id: usuarioAtual.id })
@@ -442,6 +447,8 @@ feedScroll.addEventListener("scroll", () => {
 feedScroll.addEventListener("click", async (e) => {
   const likeBtn = e.target.closest(".like-btn");
   if (likeBtn) {
+    if (!usuarioAtual) { pedirLogin(null); return; } // pede login só na hora de curtir
+
     const postId = likeBtn.dataset.postId;
     const jaCurtido = likeBtn.classList.contains("curtido");
     likeBtn.classList.toggle("curtido");
@@ -497,6 +504,7 @@ formComentario.addEventListener("submit", async (e) => {
   const input = document.getElementById("input-comentario");
   const texto = input.value.trim();
   if (!texto || !postAtualComentarios) return;
+  if (!usuarioAtual) { pedirLogin(null); return; } // pede login só na hora de comentar
 
   await supabaseClient.from("comentarios").insert({
     post_id: postAtualComentarios,
